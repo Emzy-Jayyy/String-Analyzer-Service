@@ -1,13 +1,14 @@
 const {
-    findStringById,
+    // findStringById,
     findStringByValue,
     addString,
     deleteStringById,
     filterStrings,
-    getAllStringsFromStore
+    // getAllStringsFromStore
 } = require('../config/dataStore');
 
 const { analyzeString, generateSHA256 } = require('../services/stringAnalyzer');
+const { interpretNaturalLanguage } = require('../utils/nlpParser');
 
 module.exports.createString = async (req, res, next) => {
     try {
@@ -53,7 +54,6 @@ module.exports.createString = async (req, res, next) => {
         // Add to store
         await addString(stringData);
 
-        // Return the created string
         res.status(201).json(stringData);
 
     } catch (error) {
@@ -180,7 +180,7 @@ module.exports.deleteString = async (req, res, next) => {
             });
         }
 
-        const deletedString = await deleteStringById(stringData.id);
+        await deleteStringById(stringData.id);
 
         res.status(204).send();
     } catch (error) {
@@ -188,3 +188,50 @@ module.exports.deleteString = async (req, res, next) => {
     }
 }
 
+module.exports.filterByNaturalLanguage = async (req, res, next) => {
+  try {
+    const { query } = req.query;
+
+    // Validate query parameter
+    if (!query) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Missing "query" parameter'
+      });
+    }
+
+    // Parse natural language query
+    let interpretedQuery;
+    try {
+      interpretedQuery = interpretNaturalLanguage(query);
+    } catch (parseError) {
+      // Check if it's a conflicting filters error
+      if (parseError.message.includes('Conflicting filters')) {
+        return res.status(422).json({
+          error: 'Unprocessable Entity',
+          message: parseError.message
+        });
+      }
+      // Otherwise it's a parsing error
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: parseError.message
+      });
+    }
+
+    // Apply filters
+    const strings = filterStrings(interpretedQuery.parsed_filters);
+
+    // Sort by created_at (newest first)
+    strings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    res.status(200).json({
+      data: strings,
+      count: strings.length,
+      interpreted_query: interpretedQuery
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};

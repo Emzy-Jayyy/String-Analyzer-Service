@@ -48,39 +48,38 @@ const saveData = async () => {
   }
 };
 
-/**
- * Get all strings from memory
- */
+//  Get all strings from memory
+
 const getAllStringsFromStore = () => {
   return strings;
 };
 
-/**
- * Find a string by its hash (id)
- */
+
+//  Find a string by its hash (id)
+
 const findStringById = (id) => {
   return strings.find(s => s.id === id);
 };
 
-/**
- * Find a string by its value
- */
+
+//  Find a string by its value
+
 const findStringByValue = (value) => {
   return strings.find(s => s.value === value);
 };
 
-/**
- * Add a new string to the store
- */
+
+//  Add a new string to the store
+
 const addString = async (stringData) => {
   strings.push(stringData);
   await saveData();
   return stringData;
 };
 
-/**
- * Delete a string by its id
- */
+
+  // Delete a string by its id
+
 const deleteStringById = async (id) => {
   const index = strings.findIndex(s => s.id === id);
   if (index === -1) {
@@ -91,9 +90,9 @@ const deleteStringById = async (id) => {
   return deleted;
 };
 
-/**
- * Filter strings based on criteria
- */
+
+//  Filter strings based on criteria
+
 const filterStrings = (filters) => {
   return strings.filter(str => {
     // Check is_palindrome filter
@@ -135,9 +134,9 @@ const filterStrings = (filters) => {
   });
 };
 
-/**
- * Get count of strings in store
- */
+
+//  Get count of strings in store
+ 
 const getCount = () => {
   return strings.length;
 };

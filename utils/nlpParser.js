@@ -1,13 +1,4 @@
-/**
- * Natural Language Query Parser
- * Parses natural language queries into structured filters
- */
 
-/**
- * Parse a natural language query into filters
- * @param {string} query - Natural language query
- * @returns {Object} - Parsed filters object
- */
 const parseNaturalLanguageQuery = (query) => {
   if (!query || typeof query !== 'string') {
     throw new Error('Query must be a non-empty string');
@@ -174,6 +165,7 @@ const validateFilters = (filters) => {
  * @param {string} query - Natural language query
  * @returns {Object} - Object with parsed_filters
  */
+
 const interpretNaturalLanguage = (query) => {
   try {
     const parsed_filters = parseNaturalLanguageQuery(query);
