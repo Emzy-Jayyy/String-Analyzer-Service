@@ -1,10 +1,8 @@
 const {
-    // findStringById,
     findStringByValue,
     addString,
     deleteStringById,
     filterStrings,
-    // getAllStringsFromStore
 } = require('../config/dataStore');
 
 const { analyzeString, generateSHA256 } = require('../services/stringAnalyzer');
@@ -18,18 +16,16 @@ module.exports.createString = async (req, res, next) => {
             return res.status(400).json({
                 error: 'Bad Request',
                 message: 'Missing "value" field in request body'
-            })
+            });
         }
 
         if (typeof value !== 'string') {
             return res.status(422).json({
                 error: 'Unprocessable Entity',
                 message: 'Invalid data type for "value" (must be string)'
-            })
+            });
         }
 
-
-        // Check if string already exists
         const existingString = findStringByValue(value);
 
         if (existingString) {
@@ -39,11 +35,9 @@ module.exports.createString = async (req, res, next) => {
             });
         }
 
-        // Analyze the string
         const properties = analyzeString(value);
         const sha256_hash = properties.sha256_hash;
 
-        // Create string object
         const stringData = {
             id: sha256_hash,
             value: value,
@@ -51,10 +45,9 @@ module.exports.createString = async (req, res, next) => {
             created_at: new Date().toISOString()
         };
 
-        // Add to store
         await addString(stringData);
 
-        res.status(201).json(stringData);
+        return res.status(201).json(stringData);
 
     } catch (error) {
         next(error);
@@ -138,13 +131,13 @@ module.exports.getAllStrings = async (req, res, next) => {
         // Sort by created_at (newest first)
         strings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-        res.status(200).json({
+        return res.status(200).json({
             data: strings,
             count: strings.length,
             filters_applied: filters_applied
         });
     } catch (error) {
-        next(error)
+        next(error);
     }
 };
 
@@ -155,17 +148,18 @@ module.exports.getString = async (req, res, next) => {
         const stringData = findStringByValue(string_value);
 
         if (!stringData) {
-            return res.status(400).json({
+            // MUST be 404, not 400!
+            return res.status(404).json({
                 error: 'Not Found',
-                message: 'String does not exist'
+                message: 'String does not exist in the system'
             });
         }
 
-        res.status(200).json(stringData)
+        return res.status(200).json(stringData);
     } catch (error) {
         next(error);
     }
-}
+};
 
 module.exports.deleteString = async (req, res, next) => {
     try {
@@ -176,62 +170,63 @@ module.exports.deleteString = async (req, res, next) => {
         if (!stringData) {
             return res.status(404).json({
                 error: 'Not Found',
-                message: 'String does not exist'
+                message: 'String does not exist in the system'
             });
         }
 
         await deleteStringById(stringData.id);
 
-        res.status(204).send();
+        // MUST return 204 No Content with no body
+        return res.status(204).send();
     } catch (error) {
-        next(error)
+        next(error);
     }
-}
+};
 
 module.exports.filterByNaturalLanguage = async (req, res, next) => {
-  try {
-    const { query } = req.query;
-
-    // Validate query parameter
-    if (!query) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Missing "query" parameter'
-      });
-    }
-
-    // Parse natural language query
-    let interpretedQuery;
     try {
-      interpretedQuery = interpretNaturalLanguage(query);
-    } catch (parseError) {
-      // Check if it's a conflicting filters error
-      if (parseError.message.includes('Conflicting filters')) {
-        return res.status(422).json({
-          error: 'Unprocessable Entity',
-          message: parseError.message
+        const { query } = req.query;
+
+        // Validate query parameter
+        if (!query) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Missing "query" parameter'
+            });
+        }
+
+        // Parse natural language query
+        let interpretedQuery;
+        try {
+            interpretedQuery = interpretNaturalLanguage(query);
+        } catch (parseError) {
+            // Check if it's a conflicting filters error
+            if (parseError.message.includes('Conflicting filters')) {
+                return res.status(422).json({
+                    error: 'Unprocessable Entity',
+                    message: parseError.message
+                });
+            }
+            // Otherwise it's a parsing error
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: parseError.message
+            });
+        }
+
+        // Apply filters
+        const strings = filterStrings(interpretedQuery.parsed_filters);
+
+        // Sort by created_at (newest first)
+        strings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        return res.status(200).json({
+            data: strings,
+            count: strings.length,
+            interpreted_query: interpretedQuery
         });
-      }
-      // Otherwise it's a parsing error
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: parseError.message
-      });
+
+    } catch (error) {
+        next(error);
     }
-
-    // Apply filters
-    const strings = filterStrings(interpretedQuery.parsed_filters);
-
-    // Sort by created_at (newest first)
-    strings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    res.status(200).json({
-      data: strings,
-      count: strings.length,
-      interpreted_query: interpretedQuery
-    });
-
-  } catch (error) {
-    next(error);
-  }
 };
